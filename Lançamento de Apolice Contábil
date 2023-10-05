@@ -32,11 +32,14 @@ CREATE OR REPLACE PROCEDURE "AD_STP_TCSCON_LANC" (
        V_CODCTACTB3 NUMBER;
        V_CODCTACTB4 NUMBER;
 
-BEGIN PARAM_DATAINI := ACT_DTA_PARAM(P_IDSESSAO, 'DATAINI'); 
+BEGIN 
+
+PARAM_DATAINI := ACT_DTA_PARAM(P_IDSESSAO, 'DATAINI'); 
 PARAM_DATAFIN := ACT_DTA_PARAM(P_IDSESSAO, 'DATAFIN'); 
+
 FOR I IN 1..P_QTDLINHAS LOOP 
 
-FIELD_NUMCONTRATO := ACT_INT_FIELD(P_IDSESSAO, I, 'NUMCONTRATO');
+FIELD_NUMCONTRATO := ACT_INT_FIELD(P_IDSESSAO, I, 'NUMCONTRATO'); 
 
 SELECT  COUNT(1) INTO V_COUNT
 FROM AD_TCSLAN
@@ -77,19 +80,23 @@ WHERE NUMCONTRATO = FIELD_NUMCONTRATO;
 UPDATE AD_TCSCONCONTABIL SET STATUSCONT = 'S' WHERE NUMCONTRATO = FIELD_NUMCONTRATO AND NUMLANC = V_NUMLANC2;
 
 IF V_TIPCONT = 'V' THEN 
-V_HISTORICO := 'VALOR REFERENTE APROPRIACAO DE DESPESAS CONFORME SEGURO '|| V_VEICULO || ' CHASSI '||V_CHASSI || ' PLACA '||V_PLACA ||' SEGURADORA '|| V_SEGURADORA ||' APOLICE '|| V_DESCRICAO ||' - '|| V_NUMLANC2  ||'/'|| V_NUMLANC3 ||'PARCELA.';
+V_HISTORICO := 'VALOR REFERENTE APROPRIACAO DE DESPESAS CONFORME SEGURO '|| V_VEICULO || ' CHASSI '||V_CHASSI || ' PLACA '||V_PLACA ||' SEGURADORA '|| V_SEGURADORA ||' APOLICE '|| V_DESCRICAO ||' - '|| V_NUMLANC2  ||'/'|| V_NUMLANC3 ||'..';
 END IF;
 
 IF V_TIPCONT = 'A' THEN 
-V_HISTORICO := 'VALOR DE DESPESAS REFERENTE IPTU/ ALVARÁ ANO'|| TO_CHAR(PARAM_DATAINI, 'YYYY') || ' MUNICIPIO '|| V_MUNICIPIO || ' - '|| V_NUMLANC2  ||'/'|| V_NUMLANC3 ||'PARCELA';
+V_HISTORICO := 'VALOR DE DESPESAS REFERENTE IPTU/ ALVARÁ ANO '|| TO_CHAR(PARAM_DATAINI, 'YYYY') || ' MUNICIPIO '|| V_MUNICIPIO || ' - '|| V_NUMLANC2  ||'/'|| V_NUMLANC3 ||'.';
 END IF;
 
 IF V_TIPCONT = 'E' OR  V_TIPCONT = 'S' THEN 
-V_HISTORICO := 'VALOR REFERENTE APROPRIACAO DE DESPESAS CONFORME SEGURO EMPRESARIAL/ DE VIDA SEGURADORA '|| V_SEGURADORA || ' APOLICE Nº '|| V_DESCRICAO || ' - '|| V_NUMLANC2  ||'/'|| V_NUMLANC3 ||'PARCELA';
+V_HISTORICO := 'VALOR REFERENTE APROPRIACAO DE DESPESAS CONFORME SEGURO EMPRESARIAL DA SEGURADORA '|| V_SEGURADORA || ' APOLICE Nº '|| V_DESCRICAO || ' - '|| V_NUMLANC2  ||'/'|| V_NUMLANC3 ||'.';
 END IF;
 
 IF V_TIPCONT = 'L' THEN 
-V_HISTORICO := 'VALOR APROPRIAÇÃO DESPESAS REFERENTE LICENÇA ANTIVIRUS  - '|| V_NUMLANC2 ||'/'|| V_NUMLANC3 ||'PARCELA.';
+V_HISTORICO := 'VALOR APROPRIAÇÃO DESPESAS REFERENTE LICENÇA ANTIVIRUS  - '|| V_NUMLANC2 ||'/'|| V_NUMLANC3 ||'..';
+END IF;
+
+IF V_TIPCONT = 'S' THEN 
+V_HISTORICO := 'VALOR REFERENTE APROPRIACAO DE DESPESAS CONFORME SEGURO DE VIDA DA SEGURADORA '|| V_SEGURADORA || ' APOLICE Nº '|| V_DESCRICAO || ' - '|| V_NUMLANC2  ||'/'|| V_NUMLANC3 ||'.';
 END IF;
 
 IF V_COUNT = 0 THEN
@@ -101,9 +108,14 @@ IF V_COUNT = 0 THEN
 
        IF V_STATUS <> 'S' THEN 
 
-       IF V_CODCTACTB IS NULL OR V_CODCTACTB2 IS NULL OR V_CODCTACTB3 IS NULL OR V_CODCTACTB4 IS NULL  THEN 
-              RAISE_APPLICATION_ERROR(-20001, 'Apólice Necessita de Todas as Contas Contábeis Informadas.');
+       IF V_CODCTACTB IS NULL OR V_CODCTACTB2 IS NULL OR V_CODCTACTB3 IS NULL OR V_CODCTACTB4 IS NULL AND V_TIPCONT <> 'A'  THEN 
+              RAISE_APPLICATION_ERROR(-20001, 'Para Contabilizar o Registro Necessita de Todas as Contas Contábeis Informadas.');
        END IF;
+
+       IF V_TIPCONT = 'A' AND (V_CODCTACTB IS NULL OR V_CODCTACTB2 IS NULL) AND V_MESES > 12  THEN 
+              RAISE_APPLICATION_ERROR(-20001, 'Para Contabilizar o Registro Necessita de Todas as Contas Contábeis Informadas.');
+       END IF;
+
 
        IF V_RATEIO = 0 THEN
 
@@ -115,7 +127,7 @@ IF V_COUNT = 0 THEN
                      ,V_HISTORICO
                      ,CT.VLRDESPESA
                      ,'1'
-                     ,'180'
+                     ,'1003'
                      ,CT.CODEMP
                      ,CT.PERIODOFIN
                      ,CT.REFERENCIA
@@ -147,7 +159,7 @@ IF V_COUNT = 0 THEN
                      ,V_HISTORICO
                      ,CT.VLRDESPESA
                      ,'1'
-                     ,'180'
+                     ,'1003'
                      ,CT.CODEMP
                      ,CT.PERIODOFIN
                      ,CT.REFERENCIA
@@ -180,7 +192,7 @@ IF V_COUNT = 0 THEN
               ,V_HISTORICO
               ,(CT.VLRDESPESA* (RAT.PERC/100))
               ,'1'
-              ,'180'
+              ,'1003'
               ,CT.CODEMP
               ,CT.PERIODOFIN
               ,CT.REFERENCIA
@@ -212,7 +224,7 @@ IF V_COUNT = 0 THEN
                      ,V_HISTORICO
                      ,(CT.VLRDESPESA* (RAT.PERC/100))
                      ,'1'
-                     ,'180'
+                     ,'1003'
                      ,CT.CODEMP
                      ,CT.PERIODOFIN
                      ,CT.REFERENCIA
@@ -247,10 +259,10 @@ IF V_COUNT = 0 THEN
                      ,NVL(MAX(LAN.NUMLANC),0)+ ROW_NUMBER() OVER(ORDER BY NVL(MAX(LAN.NUMLANC),0) ASC)
                      ,'D'
                      ,CON.AD_CODCTACTBCP
-                     ,'TRANSFERENCIA DE DESPESAS A APROPRIAR DE LONGO PARA CURTO PRAZO APOLICE N°' || V_DESCRICAO || '.'
+                     ,'TRANSFERENCIA DE DESPESAS A APROPRIAR DE LONGO PARA CURTO PRAZO '|| V_DESCRICAO || '.'
                      ,CT.VLRDESPESA
                      ,'1'
-                     ,'180'
+                     ,'1002'
                      ,CT.CODEMP
                      ,ADD_MONTHS(CT.PERIODOFIN, -12)
                      ,CT.REFERENCIA
@@ -277,10 +289,10 @@ IF V_COUNT = 0 THEN
                      ,NVL(MAX(LAN.NUMLANC),0)+ ROW_NUMBER() OVER(ORDER BY NVL(MAX(LAN.NUMLANC),0) ASC)
                      ,'R'
                      ,CON.AD_CODCTACTBLP
-                     ,'TRANSFERENCIA DE DESPESAS A APROPRIAR DE LONGO PARA CURTO PRAZO APOLICE N°' || V_DESCRICAO || '.'
+                     ,'TRANSFERENCIA DE DESPESAS A APROPRIAR DE LONGO PARA CURTO PRAZO '|| V_DESCRICAO || '.'
                      ,CT.VLRDESPESA
                      ,'1'
-                     ,'180'
+                     ,'1002'
                      ,CT.CODEMP
                      ,ADD_MONTHS(CT.PERIODOFIN, -12)
                      ,CT.REFERENCIA
@@ -293,6 +305,7 @@ IF V_COUNT = 0 THEN
               WHERE CT.NUMCONTRATO = FIELD_NUMCONTRATO
               AND CT.PERIODOINI >= ADD_MONTHS(PARAM_DATAINI, 12)
               AND CT.PERIODOFIN <= ADD_MONTHS(PARAM_DATAFIN, 12)
+              AND CT.STATUSLP = 'S'
               GROUP BY  CON.AD_CODCTACTBLP
                        ,CON.CODCENCUS              
                        ,CT.VLRDESPESA
@@ -300,15 +313,16 @@ IF V_COUNT = 0 THEN
                        ,CT.REFERENCIA
                        ,CT.PERIODOFIN
                        ,CT.NUMLANC;
-              UPDATE AD_TCSCONCONTABIL SET STATUSLP = 'N' WHERE NUMCONTRATO = FIELD_NUMCONTRATO
-              AND PERIODOINI >= ADD_MONTHS(PARAM_DATAINI, 12)
-              AND PERIODOFIN <= ADD_MONTHS(PARAM_DATAFIN, 12)
-              AND STATUSLP = 'S';
+
     END IF; 
     END IF; 
+
     IF V_STATUS = 'S' THEN 
        RAISE_APPLICATION_ERROR(-20001, 'Apólice já Contabilizada.');
     END IF;
+
 END LOOP;
+
 END;
+
 /
